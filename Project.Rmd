@@ -1,0 +1,485 @@
+
+
+```{r}
+library(dplyr)
+
+raw_df<-read.csv("C:/Users/sriva/Downloads/AMAT565/Project/train_cleaned.csv")
+raw_df
+```
+
+```{r}
+#removing NA's
+raw_df <- raw_df[apply(raw_df != 0 & !is.na(raw_df), 1, all), ]
+#converting Power to numeric column
+raw_df$Power <- as.numeric(raw_df$Power)
+# Check for NAs in a vector or dataframe column
+na <- anyNA(raw_df)
+print(na)
+raw_df
+```
+```{r}
+# Load necessary libraries
+# Load necessary libraries
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+
+# Load the data
+data <- read.csv('C:/Users/sriva/Downloads/AMAT565/Project/train_final.csv')
+
+# Modify the column names to ensure they are compatible with R's variable naming conventions
+colnames(data) <- make.names(colnames(data))
+
+# Define your categorical and numerical variables somewhere in the code
+categorical_vars <- c("Category", "Location", "Fuel_Type", "Transmission", "Owner_Type")
+numerical_vars <- c("Year", "Kilometers_Driven", "Engine", "Mileage", "Power")
+
+# For categorical variables: create a single plot with box plots using facet_wrap
+data_long_cat <- data %>% 
+  gather(key = "category", value = "value", one_of(categorical_vars))
+
+cat_plot <- ggplot(data_long_cat, aes(x = value, y = Price)) +
+  geom_boxplot() +
+  facet_wrap(~ category, scales = 'free') +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  labs(title = 'Boxplot of Price across Categorical Variables')
+
+print(cat_plot)
+
+# Exclude rows by index
+# Assuming the column of interest is named 'value_column'
+# and the threshold value is 100
+data_filtered <- data %>%
+  filter(Kilometers_Driven <= 400000)
+
+
+data_long_num <- data_filtered %>%
+  gather(key = "variable", value = "value", one_of(numerical_vars))
+
+num_plot <- ggplot(data_long_num, aes(x = value, y = Price, color = Category)) + 
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = 'lm', color = 'blue', se = FALSE) +
+  facet_wrap(~ variable, scales = 'free') +
+  labs(title = 'Scatterplot of Price and Numerical Variables') +
+  theme_minimal() + # Added a minimal theme for a cleaner look
+  theme(legend.position = "bottom") # Adjust legend position
+
+print(num_plot)
+
+```
+
+```{r}
+summary(raw_df)
+```
+
+```{r}
+raw_df$Brand <- sapply(strsplit(as.character(raw_df$Name), " "), `[`, 1)
+unique(raw_df$Brand)
+```
+
+```{r}
+# Step 1: Extract the first word as the brand name
+full_df <- raw_df 
+
+# Step 2: Manually classify brands
+# Define a named vector where names are brands and values are categories
+brand_categories <- c(
+  "LandRover" = "Luxury", 
+  "MiniCooper" = "Luxury", 
+  "Audi" = "Luxury", 
+  "Jaguar" = "Luxury", 
+  "Bentley" = "Luxury",
+  "Volvo" = "Luxury", 
+  "BMW" = "Luxury", 
+  "Lamborghini" = "Luxury", 
+  "Mercedes-Benz" = "Luxury", 
+  "Porsche" = "Luxury",
+  "Mitsubishi" = "MidRange", 
+  "Skoda" = "MidRange", 
+  "Volkswagen" = "MidRange", 
+  "Ford" = "MidRange", 
+  "Hyundai" = "MidRange", 
+  "Jeep" = "MidRange",
+  "Ambassador" = "Economy", 
+  "Chevrolet" = "Economy", 
+  "ISUZU" = "Economy", 
+  "Renault" = "Economy", 
+  "Toyota" = "Economy", 
+  "Datsun" = "Economy", 
+  "Honda" = "Economy", 
+  "Mahindra" = "Economy", 
+  "Fiat" = "Economy", 
+  "Maruti" = "Economy", 
+  "Nissan" = "Economy", 
+  "Isuzu" = "Economy", 
+  "Tata" = "Economy", 
+  "Force" = "Economy")
+
+full_df <- full_df %>% mutate(Category = brand_categories[Brand])
+
+#Removing LPG and CNG fuel_type
+full_df <- full_df[!full_df$Fuel_Type %in% c('LPG', 'CNG'), ]
+row.names(full_df) <- NULL
+
+Brand <- full_df$Brand
+full_df <- full_df[,!names(full_df) %in% c('Name','Brand')]
+
+# Assuming 'df' is your dataframe and it already contains a 'Category' column
+full_df <- full_df[, c("Category", setdiff(names(full_df), "Category"))]
+
+library(dplyr)
+
+full_df <- full_df %>%
+  mutate(Location = case_when(
+    Location %in% c("Chennai", "Coimbatore", "Kochi") ~ "Chennai",
+    Location %in% c("Delhi", "Jaipur") ~ "Delhi",
+    Location %in% c("Ahmedabad", "Pune", "Mumbai") ~ "Mumbai",
+    TRUE ~ Location))
+
+full_df <- full_df %>%
+  mutate(Owner_Type = case_when(
+    Owner_Type %in% c("Third", "Fourth & Above") ~ "Third & above",
+    TRUE ~ Owner_Type))
+```
+
+```{r}
+full_df
+    
+```
+
+
+```{r}
+columns_of_interest <- setdiff(names(full_df), c("Year", "Kilometers_Driven", "Mileage", "Engine", "Power", "Price"))
+unique_values_per_column <- lapply(full_df[columns_of_interest], unique)
+unique_values_per_column
+```
+```{r}
+# Define the proportion for the training set
+train_proportion <- 0.85
+split_index <- floor(train_proportion * nrow(full_df))
+df <- full_df[1:split_index, ]
+rownames(df) <- NULL  # Remove row names
+test_df <- full_df[(split_index + 1):nrow(full_df), ]
+rownames(test_df) <- NULL  # Remove row names
+df
+test_df
+```
+
+
+```{r}
+library(ggplot2)
+library(GGally)
+library(dplyr)
+
+ggpairs(data = df[-2234,] %>% select(where(is.numeric)))
+```
+
+```{r}
+df
+#write.csv(df, file = "train_final.csv", row.names = FALSE)
+```
+```{r}
+library(corrplot)
+
+numeric_data <- df[sapply(df, is.numeric)]
+cor_matrix <- cor(numeric_data)
+
+# Create a correlation plot
+corrplot(cor_matrix, method = "color", order = "hclust",tl.col = "black", tl.srt = 45, addCoef.col = "black")
+
+```
+
+```{r}
+ggplot(df, aes(x = Engine, y = Price, color = Category)) +
+  geom_point() +
+  labs(title = "Price vs Engine by Category",
+       x = "Engine",
+       y = "Price",
+       color = "Category")
+```
+
+```{r}
+ggplot(df, aes(x = Engine, y = Price, color = Fuel_Type)) +
+  geom_point() +
+  labs(title = "Price vs Engine by Fuel_Type",
+       x = "Engine",
+       y = "Price",
+       color = "Fuel_Type")
+```
+```{r}
+ggplot(df, aes(x = Engine, y = Price, color = Transmission)) +
+  geom_point() +
+  labs(title = "Price vs Engine by Transmission",
+       x = "Engine",
+       y = "Price",
+       color = "Transmission")
+```
+
+
+"From Economy to Luxury: Price Distribution Analysis of Used Cars Across India"
+
+```{r}
+model1 <- lm(Price ~ Category+Location+Year+Kilometers_Driven+Fuel_Type+Transmission+Owner_Type+
+              Mileage+Engine+Power, data=df)
+summary(model1)
+```
+```{r}
+plot(model1$residuals)
+hist(model1$residuals)
+
+# Check for multicollinearity
+library(car)
+vif(model1)
+```
+```{r}
+hist(df$Year)
+hist(log(df$Kilometers_Driven[-2234]))
+ #    ,breaks = c(0,10000*(1:10),775000))
+
+```
+
+```{r}
+interaction.plot(x.factor = df$Transmission, trace.factor = df$Category, response = df$Price)
+interaction.plot(x.factor = df$Location, trace.factor = df$Category, response = df$Price)
+interaction.plot(x.factor = df$Fuel_Type, trace.factor = df$Category, response = df$Price)
+interaction.plot(x.factor = df$Owner_Type, trace.factor = df$Category, response = df$Price)
+```
+
+```{r}
+ggplot(df, aes(x = Engine, y = Price, color = Category)) + geom_point() + geom_smooth(method = "lm")
+ggplot(df, aes(x = Year, y = Price, color = Category)) + geom_point() + geom_smooth(method = "lm")
+ggplot(df, aes(x = Kilometers_Driven, y = Price, color = Category)) + geom_point() + geom_smooth(method = "lm")
+ggplot(df, aes(x = Power, y = Price, color = Category)) + geom_point() + geom_smooth(method = "lm")
+ggplot(df, aes(x = Mileage,color = Category, y = Price )) + geom_point() + geom_smooth(method = "lm")
+ggplot(df, aes(x = Year, y = Price,color = Category)) + geom_point() + geom_smooth(method = "lm")
+```
+```{r}
+interaction.plot(x.factor = df$log(Engine), trace.factor = df$Year, response = df$Price)
+```
+
+
+```{r}
+cor(df[,sapply(df, is.numeric)])
+```
+```{r}
+library(caret)
+fit <- train(Price ~ ., data = df, method = "lm")
+varImp(fit)
+```
+```{r}
+
+# Update your model to include the new log_Engine variable
+model3 <- lm(log(Price) ~ Category + Location + Transmission + log(Engine) * Year + 
+             log(Power) * Year +
+             log(Engine) * log(Power) + Year * Mileage +
+             log(Kilometers_Driven) * Year + log(Kilometers_Driven) : Mileage +
+             Category * Fuel_Type, data = df)
+
+# Use ggpredict with the updated model and new log_Engine variable
+p <- ggpredict(model3, terms = c("log_Engine", "Year"))
+
+# Plot the interaction
+plot(p)
+
+```
+```{r}
+# Filter out NA values before creating the new data frame for predictions
+df <- df[!is.na(df$Kilometers_Driven),]
+
+# Now create the new data frame for predictions
+newdata <- expand.grid(
+  Mileage = seq(min(df$Mileage, na.rm = TRUE), max(df$Mileage, na.rm = TRUE), length.out = 100),
+  log_Kilometers_Driven = seq(min(log(df$Kilometers_Driven)), max(log(df$Kilometers_Driven)), length.out = 100),
+  Engine = median(df$Engine, na.rm = TRUE),
+  Power = median(df$Power, na.rm = TRUE),
+  Year = median(df$Year, na.rm = TRUE),
+  Category = levels(df$Category)[1],
+  Location = levels(df$Location)[1],
+  Transmission = levels(df$Transmission)[1],
+  Fuel_Type = levels(df$Fuel_Type)[1]
+)
+
+# Assume 'model3' is your lm model that includes 'log(Kilometers_Driven)' and other variables
+# Predict using the model
+newdata$predicted_log_Price <- predict(model3, newdata = newdata)
+
+# Plot
+ggplot(newdata, aes(x = Mileage, y = predicted_log_Price, color = log_Kilometers_Driven)) +
+  geom_line() +
+  labs(x = "Mileage", y = "Predicted Log(Price)", color = "Log(Kilometers Driven)")
+
+```
+```{r}
+# You can use the interaction.plot function from base R for this
+with(df, interaction.plot(Category, Fuel_Type, Price))
+```
+
+
+
+```{r}
+model3 <- lm(log(Price) ~ Category + Location  + Transmission + log(Engine)*Year + log(Power)*Year +
+     log(Engine) * log(Power) +
+     Year * Mileage +
+     log(Kilometers_Driven) * Year + 
+     log(Kilometers_Driven) : Mileage +
+     Category * Fuel_Type, data = df)
+ 
+summary(model3)
+```
+
+```{r}
+bmod<-step(model3,trace=FALSE)
+summary(bmod)
+```
+
+```{r}
+
+plot(bmod$fitted.values, resid(bmod), 
+     xlab = "Fitted Values", ylab = "Residuals",
+     main = "Residuals vs Fitted")
+abline(h = 0, col = "red")
+
+qqnorm(resid(bmod))
+qqline(resid(bmod), col = "red")
+
+
+plot(bmod$fitted.values, sqrt(abs(resid(bmod))), 
+     xlab = "Fitted Values", ylab = "Sqrt(|Residuals|)",
+     main = "Scale-Location Plot")
+
+plot(hatvalues(bmod), resid(bmod), 
+     xlab = "Leverage", ylab = "Residuals",
+     main = "Residuals vs Leverage")
+abline(h = 0, col = "red")
+
+acf(resid(bmod), main="ACF of Residuals")
+
+cooks.distance(bmod)
+
+
+```
+
+```{r}
+library(leaps)
+model_sub <- regsubsets(log(Price) ~ Category + Location  + Transmission + log(Engine)*Year +       
+                        log(Power)*Year +
+                        log(Engine) * log(Power) +
+                        Year * Mileage +
+                        log(Kilometers_Driven) * Year + 
+                        log(Kilometers_Driven) : Mileage +
+                        Category * Fuel_Type, nbest = 3, 
+                        really.big = TRUE, nvmax = 10, data = df)
+summary(model_sub)
+```
+```{r}
+errs <- bmod$residuals
+fit <- bmod$fitted.values
+plot(abs(errs)~fit)
+lomod<-loess(abs(errs)~fit)
+inx<-order(fit)
+lines(fit[inx],lomod$fitted[inx], col = "red")
+```
+```{r}
+ermod <- lm(abs(errs)~fit)
+fit.as.sd <- abs(ermod$fitted.values)
+w <- 1/fit.as.sd
+wls_model <- lm(bmod, weights = w, data = df)
+summary(wls_model)
+```
+```{r}
+par(mfrow = c(2,2))
+plot(wls_model,1)
+plot(wls_model,2)
+plot(wls_model,3)
+plot(wls_model,5)
+```
+
+
+```{r}
+# Load the caret package
+library(caret)
+
+# Define control parameters for the cross-validation
+# method = "cv": Cross-validation
+# number = 10: Number of folds
+# verboseIter = TRUE: Print logging information during training
+train_control <- trainControl(method = "cv", number = 1000, verboseIter = FALSE)
+
+# Fit the model with cross-validation
+set.seed(123)  # For reproducibility
+model_cv <- train(log(Price) ~ Category + Location  + Transmission + log(Engine)*Year +
+                  log(Power)*Year +
+                  log(Engine) * log(Power) +
+                  Year * Mileage +
+                  log(Kilometers_Driven) * Year + 
+                  log(Kilometers_Driven) : Mileage +
+                  Category * Fuel_Type,
+                  data = df,
+                  method = "lm",
+                  trControl = train_control)
+
+# Print the results
+print(model_cv)
+summary(model_cv)
+```
+
+
+```{r}
+AIC(model3, bmod, model_cv$finalModel)
+BIC(model3, bmod, model_cv$finalModel)
+```
+
+```{r}
+plot(model_cv$finalModel)
+```
+
+```{r}
+library(dplyr)
+
+actual <- test_df$Price
+test_df <- test_df %>% select(-Price)
+test_df
+```
+
+```{r}
+log_predictions <- predict(model_cv, newdata = test_df)
+
+# Transform the predicted log prices back to the original price scale
+predicted <- (log_predictions)
+
+```
+
+```{r}
+residuals <- log(actual) - predicted
+
+# Calculate RMSE
+RMSE <- sqrt(mean(residuals^2))
+
+# Calculate MAE
+MAE <- mean(abs(residuals))
+
+# Print the performance metrics
+cat("RMSE:", RMSE, "\nMAE:", MAE)
+```
+
+```{r}
+# Assuming 'predicted' and 'actual' are your vectors of predicted and actual Price values
+
+# Load necessary library
+library(ggplot2)
+
+# Create a dataframe from your vectors
+comparison_df <- data.frame(Actual = log(actual), Predicted = predicted)
+
+# Create the plot
+ggplot(comparison_df, aes(x = Actual, y = Predicted)) +
+  geom_point(alpha = 0.5) +  # Add points with a bit of transparency
+  geom_abline(intercept = 0, slope = 1, linetype = "dashed", color = "red") +  # Add a dashed line with slope = 1
+  labs(title = "log of Actual vs log Predicted Price",
+       x = "log of Actual Price",
+       y = "log Predicted Price") +
+  theme_minimal() +
+  geom_smooth(method = "lm", color = "blue", se = FALSE)  # Add a linear trend line
+
+```
+
